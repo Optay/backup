@@ -1,11 +1,12 @@
-# The Timer Thing
-[The Timer Thing](http://optay.github.io/timer/build/) is an HTML5 time tracker. It was written as a little experimental test project. It has been reorganized a few times, and could use another pass or three.
+# Backup
+A simple backup script that copies files based on modification time. The source/destination drive and paths must be edited in the script. Then run:
 
-The Timer is essentially a timer. Time is tracked in blocks. A block has a start time and an end time. Blocks are stored in days. A day has a date. And days are stored in tasks. A task represents a project for which you want to track time. Data is stored in the browser's local storage.
+    node backup.js
 
+Backup performs two operations: copy and clean. Copy scans the source paths and copies files that are new or newer to the destination. Clean scans the destination paths and deletes files that are not present in source.
+
+Note that the clean operation deletes from the destination paths all files not present in the matching source paths. Set the destination carefully.
 
 ##Changelog
-
-
 
 

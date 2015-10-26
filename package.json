@@ -1,6 +1,8 @@
 {
   "name": "Backup",
   "version": "0.1.0",
-  "devDependencies": {
+  "devDependencies": {},
+  "dependencies": {
+    "fs-extra": "^0.26.0"
   }
 }

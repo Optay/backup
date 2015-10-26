@@ -8,34 +8,32 @@
  * Note that the clean operation deletes from the DEST paths all files not present in the
  * matching SRC paths.
  *
- * TODO:
- *  make repo,
- *  commit,
- *  make dev branch...,
- *  add try-catch to all fs calls.
- *  Uncomment file operations, double check file operations never write to SRC paths, do limited test run.
- *  set up for full run
- *  
  */
 
+var backup = function() {
+
 var fs = require('fs');
-//var fse = require('fs-extra');
+var fse = require('fs-extra');
 var path = require('path');
 
 // Define source and destination
 var driveSrc = 'C:';
-var pathSrc = ['Important/images'];
-//var pathSrc = ['Important', 'Users'];
+//var pathSrc = ['Important/music']; // test path
+var pathSrc = ['Important', 'Users'];
 var driveDest = 'Y:';
 //
 
 // Initialize log
-var logStream = fs.createWriteStream( path.join( __dirname, 'log.txt') );
+try {
+  var logStream = fs.createWriteStream( path.join( __dirname, 'log.txt') );
+} catch (error) {
+  console.log( 'Unable to initialize log', error );
+  return;
+}
 //
 
 copySrc();
 cleanDest();
-
 
 // BACKUP
 function copySrc() {
@@ -59,12 +57,24 @@ function copySrc() {
       var test = fs.statSync( folderPathDest );
     } catch(e) {
       log( 'Make directory', folderPathDest );
-      //fs.mkdirSync( folderPathDest );
+      try {
+        fs.mkdirSync( folderPathDest );
+      } catch(error) {
+        log('Error making directory', folderPathDest );
+        continue; // Skip it, since we won't be able to copy anything.
+      }
     }
     //
     
     // Contents of folder
-    var items = fs.readdirSync( folderPathSrc );
+    try {
+      var items = fs.readdirSync( folderPathSrc );
+    } catch(error) {
+      log('Error reading contents of directory', error );
+      continue;
+    }
+    
+    
     //if ( err != null ) { log(err); }
     for( var i = 0, len=items.length; i<len; i++ ) {
       var itemPathSrc = path.join( folderPathSrc, items[i] );
@@ -86,25 +96,32 @@ function copySrc() {
           fs.accessSync(itemPathDest, fs.F_OK);
           
           // Compare times
-          var statsDest = fs.statSync( itemPathDest );
-          if ( statsSrc.mtime.getTime() > statsDest.mtime.getTime() ) {
-            log( 'Source file is newer', statsSrc.mtime.getTime(), statsDest.mtime.getTime() );
-            copyFile = true;
+          try {
+            // Check if time difference is greater than 1 second. The fse copy function does
+            // not copy milliseconds in timestamp, so differences less than 1 second will persist.
+            var statsDest = fs.statSync( itemPathDest );
+            var timeDiff = statsSrc.mtime.getTime() - statsDest.mtime.getTime();
+            if ( timeDiff > 1000 ) {
+              log( 'Source file is newer', statsSrc.mtime.getTime(), statsDest.mtime.getTime() );
+              copyFile = true;
+            }
+          } catch( error) {
+            log( 'Error getting item stats', error );
           }
         } catch(e) {
           log( 'File not present in destination', itemPathDest );
           copyFile = true;
         }
         if ( copyFile ) {
-          log( 'copy', itemPathSrc, itemPathDest );
-          /*fse.copy( itemPathSrc,
-                      itemPathDest,
-                      { clobber: true, preserveTimestamps: true },
-                      function( error ) {
+          log( 'Copy', itemPathSrc, itemPathDest );
+          fse.copy( itemPathSrc,
+                    itemPathDest,
+                    { clobber: true, preserveTimestamps: true },
+                    function( error ) {
             if ( error ) {
               log("Error copying", itemPathSrc, itemPathDest );
             }
-          });*/
+          });
         }
         
       } else if ( statsSrc.isDirectory() ) {
@@ -137,7 +154,11 @@ function cleanDest() {
     var folderPathDest = pathQueue.pop();
     
     // Contents of folder
-    var contents = fs.readdirSync( folderPathDest );
+    try {
+      var contents = fs.readdirSync( folderPathDest );
+    } catch(error) {
+      log('Error getting directory contents', error );
+    }
     //if ( err != null ) { log(err); }
     for( var i = 0, len=contents.length; i<len; i++ ) {
       var itemPathDest = path.join( folderPathDest, contents[i] );
@@ -153,17 +174,21 @@ function cleanDest() {
         // Item is not present in source, delete it from backup path
         log("Deleting", itemPathDest );
         // DO NOT DELETE ANY "SRC" PATHS
-        /*fs.unlink( itemPath, function(error) {
+        fs.unlink( itemPathDest, function(error) {
           if (error) {
-            log("Error deleting: " + itemPath + "\n" + error );
+            log("Error deleting: " + itemPathDest + "\n" + error );
           }
-        });*/
+        });
         continue; // We're done with this item
       }
       
-      var statsDest = fs.lstatSync( itemPathDest );
-      if ( statsDest.isDirectory() ) {
-        pathQueue.push( itemPathDest );
+      try {
+        var statsDest = fs.lstatSync( itemPathDest );
+        if ( statsDest.isDirectory() ) {
+          pathQueue.push( itemPathDest );
+        }
+      } catch(error) {
+        log( 'Error getting item stats', error );
       }
     }
   }
@@ -191,6 +216,9 @@ function log() {
   logStream.write( message + '\n' );
 }
 
+}
+
+backup();
 
 
 
